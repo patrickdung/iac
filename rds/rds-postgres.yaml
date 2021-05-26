@@ -1,0 +1,49 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+Description: Create RDS PostgreSQL
+Parameters:
+  AllocatedStorage:
+    Type: Number 
+    Description: Database storage size in GB
+    MinValue: 20
+    MaxValue: 30
+    ConstraintDescription: Select a value between 20 to 30
+    Default: 20
+  DBInstanceClass:
+    Type: String 
+    Description: DB instance class 
+    AllowedValues:
+      - db.t3.micro
+      - db.t3.small
+    Default: db.t3.micro
+  EngineVersion:
+    Type: String
+    Description: Database engine version
+    AllowedValues:
+      - 11.11
+      - 12.6
+      - 13.2
+    Default: 12.6
+  MasterUsername:
+    Type: String 
+    Description: Master username for the database instance
+    Default: postgres
+  MasterUserPassword:
+    Type: String 
+    Description: Master password for the database instance
+    MinLength: 8
+    Default: password
+    NoEcho: true
+Resources:
+  DatabasePostgres:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceIdentifier: "Database1"
+      Engine: "postgres"
+      AllocatedStorage: !Ref AllocatedStorage
+      StorageType: gp2
+      DBInstanceClass: !Ref DBInstanceClass
+      EngineVersion: !Ref EngineVersion
+      DBSubnetGroupName: DatabaseSubnetGroup
+      MasterUsername: !Ref MasterUsername
+      MasterUserPassword: !Ref MasterUserPassword
