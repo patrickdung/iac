@@ -1,0 +1,245 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  Allow VPC 01 qa SubnetPublicWeb
+  to access SubnetPrivateDB database port
+Parameters:
+  StackNameOfVPC:
+    Description: >-
+      Provide stack name of the VPC to get the SubnetGroup of the database
+    Type: String
+  AllowDestinationPortDbPgSql:
+    Description: Ingress ports to allow PgSql port (5432) -1 for not enabling this ingress
+    Type: Number
+    MinValue: -1
+    MaxValue: 65535
+    Default: 5432
+  AllowDestinationPortDbMySql:
+    Description: Ingress ports to allow MySql port (3306), -1 for not enabling this ingress
+    Type: Number
+    MinValue: -1
+    MaxValue: 65535
+    Default: -1
+  AllowDestinationPortDbOracle:
+    Description: Ingress ports to allow Oracle port (1521), -1 for not enabling this ingress
+    Type: Number
+    MinValue: -1
+    MaxValue: 65535
+    Default: -1
+  AllowDestinationPortDbMsSql:
+    Description: Ingress ports to allow MsSql port (1433), -1 for not enabling this ingress
+    Type: Number
+    MinValue: -1
+    MaxValue: 65535
+    Default: -1
+
+Conditions:
+  AllowIngressPgSql: !Not [!Equals [!Ref AllowDestinationPortDbPgSql, "-1"]] 
+  AllowIngressMySql: !Not [!Equals [!Ref AllowDestinationPortDbMySql, "-1"]] 
+  AllowIngressOracle: !Not [!Equals [!Ref AllowDestinationPortDbOracle, "-1"]] 
+  AllowIngressMsSql: !Not [!Equals [!Ref AllowDestinationPortDbMsSql, "-1"]] 
+
+Resources:
+  SecurityGroupWebToDb:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Security Group for vpc 01 qa Web to qa DB"
+      GroupName: "secgroup-eun1-qa-web-to-qa-db"
+      VpcId:
+        Fn::ImportValue:
+          !Sub "${StackNameOfVPC}-VPCID"
+      Tags:
+        - Key: Name
+          Value: "secgroup-eun1-qa-web-to-qa-db"
+  SecurityGroupIngressRuleWebToDbPgSql1:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: AllowIngressPgSql
+    Properties:
+      Description: "Allow ingress to from SubnetPublicWeb1 to database port"
+      GroupId:
+        Fn::GetAtt:
+        - SecurityGroupWebToDb
+        - GroupId
+      CidrIp:
+        Fn::ImportValue:
+          !Sub "${StackNameOfVPC}-cidrSubnetPublicWeb1"
+      IpProtocol: tcp
+      FromPort: !Ref AllowDestinationPortDbPgSql
+      ToPort: !Ref AllowDestinationPortDbPgSql
+  
+  SecurityGroupIngressRuleWebToDbPgSql2:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: AllowIngressPgSql
+    Properties:
+      Description: "Allow ingress to from SubnetPublicWeb2 to database port"
+      GroupId:
+        Fn::GetAtt:
+        - SecurityGroupWebToDb
+        - GroupId
+      CidrIp:
+        Fn::ImportValue:
+          !Sub "${StackNameOfVPC}-cidrSubnetPublicWeb2"
+      IpProtocol: tcp
+      FromPort: !Ref AllowDestinationPortDbPgSql
+      ToPort: !Ref AllowDestinationPortDbPgSql
+  
+  SecurityGroupIngressRuleWebToDbPgSql3:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: AllowIngressPgSql
+    Properties:
+      Description: "Allow ingress to from SubnetPublicWeb3 to database port"
+      GroupId:
+        Fn::GetAtt:
+        - SecurityGroupWebToDb
+        - GroupId
+      CidrIp:
+        Fn::ImportValue:
+          !Sub "${StackNameOfVPC}-cidrSubnetPublicWeb3"
+      IpProtocol: tcp
+      FromPort: !Ref AllowDestinationPortDbPgSql
+      ToPort: !Ref AllowDestinationPortDbPgSql
+  
+  SecurityGroupIngressRuleWebToDbMySql1:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: AllowIngressMySql
+    Properties:
+      Description: "Allow ingress to from SubnetPublicWeb1 to database port"
+      GroupId:
+        Fn::GetAtt:
+        - SecurityGroupWebToDb
+        - GroupId
+      CidrIp:
+        Fn::ImportValue:
+          !Sub "${StackNameOfVPC}-cidrSubnetPublicWeb1"
+      IpProtocol: tcp
+      FromPort: !Ref AllowDestinationPortDbMySql
+      ToPort: !Ref AllowDestinationPortDbMySql
+  
+  SecurityGroupIngressRuleWebToDbMySql2:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: AllowIngressMySql
+    Properties:
+      Description: "Allow ingress to from SubnetPublicWeb2 to database port"
+      GroupId:
+        Fn::GetAtt:
+        - SecurityGroupWebToDb
+        - GroupId
+      CidrIp:
+        Fn::ImportValue:
+          !Sub "${StackNameOfVPC}-cidrSubnetPublicWeb2"
+      IpProtocol: tcp
+      FromPort: !Ref AllowDestinationPortDbMySql
+      ToPort: !Ref AllowDestinationPortDbMySql
+  
+  SecurityGroupIngressRuleWebToDbMySql3:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: AllowIngressMySql
+    Properties:
+      Description: "Allow ingress to from SubnetPublicWeb3 to database port"
+      GroupId:
+        Fn::GetAtt:
+        - SecurityGroupWebToDb
+        - GroupId
+      CidrIp:
+        Fn::ImportValue:
+          !Sub "${StackNameOfVPC}-cidrSubnetPublicWeb3"
+      IpProtocol: tcp
+      FromPort: !Ref AllowDestinationPortDbMySql
+      ToPort: !Ref AllowDestinationPortDbMySql
+  
+  SecurityGroupIngressRuleWebToDbOracle1:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: AllowIngressOracle
+    Properties:
+      Description: "Allow ingress to from SubnetPublicWeb1 to database port"
+      GroupId:
+        Fn::GetAtt:
+        - SecurityGroupWebToDb
+        - GroupId
+      CidrIp:
+        Fn::ImportValue:
+          !Sub "${StackNameOfVPC}-cidrSubnetPublicWeb1"
+      IpProtocol: tcp
+      FromPort: !Ref AllowDestinationPortDbOracle
+      ToPort: !Ref AllowDestinationPortDbOracle
+  
+  SecurityGroupIngressRuleWebToDbOracle2:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: AllowIngressOracle
+    Properties:
+      Description: "Allow ingress to from SubnetPublicWeb2 to database port"
+      GroupId:
+        Fn::GetAtt:
+        - SecurityGroupWebToDb
+        - GroupId
+      CidrIp:
+        Fn::ImportValue:
+          !Sub "${StackNameOfVPC}-cidrSubnetPublicWeb2"
+      IpProtocol: tcp
+      FromPort: !Ref AllowDestinationPortDbOracle
+      ToPort: !Ref AllowDestinationPortDbOracle
+  
+  SecurityGroupIngressRuleWebToDbOracle3:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: AllowIngressOracle
+    Properties:
+      Description: "Allow ingress to from SubnetPublicWeb3 to database port"
+      GroupId:
+        Fn::GetAtt:
+        - SecurityGroupWebToDb
+        - GroupId
+      CidrIp:
+        Fn::ImportValue:
+          !Sub "${StackNameOfVPC}-cidrSubnetPublicWeb3"
+      IpProtocol: tcp
+      FromPort: !Ref AllowDestinationPortDbOracle
+      ToPort: !Ref AllowDestinationPortDbOracle
+  
+  SecurityGroupIngressRuleWebToDbMsSql1:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: AllowIngressMsSql
+    Properties:
+      Description: "Allow ingress to from SubnetPublicWeb1 to database port"
+      GroupId:
+        Fn::GetAtt:
+        - SecurityGroupWebToDb
+        - GroupId
+      CidrIp:
+        Fn::ImportValue:
+          !Sub "${StackNameOfVPC}-cidrSubnetPublicWeb1"
+      IpProtocol: tcp
+      FromPort: !Ref AllowDestinationPortDbMsSql
+      ToPort: !Ref AllowDestinationPortDbMsSql
+  
+  SecurityGroupIngressRuleWebToDbMsSql2:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: AllowIngressMsSql
+    Properties:
+      Description: "Allow ingress to from SubnetPublicWeb2 to database port"
+      GroupId:
+        Fn::GetAtt:
+        - SecurityGroupWebToDb
+        - GroupId
+      CidrIp:
+        Fn::ImportValue:
+          !Sub "${StackNameOfVPC}-cidrSubnetPublicWeb2"
+      IpProtocol: tcp
+      FromPort: !Ref AllowDestinationPortDbMsSql
+      ToPort: !Ref AllowDestinationPortDbMsSql
+  
+  SecurityGroupIngressRuleWebToDbMsSql3:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: AllowIngressMsSql
+    Properties:
+      Description: "Allow ingress to from SubnetPublicWeb3 to database port"
+      GroupId:
+        Fn::GetAtt:
+        - SecurityGroupWebToDb
+        - GroupId
+      CidrIp:
+        Fn::ImportValue:
+          !Sub "${StackNameOfVPC}-cidrSubnetPublicWeb3"
+      IpProtocol: tcp
+      FromPort: !Ref AllowDestinationPortDbMsSql
+      ToPort: !Ref AllowDestinationPortDbMsSql
+  

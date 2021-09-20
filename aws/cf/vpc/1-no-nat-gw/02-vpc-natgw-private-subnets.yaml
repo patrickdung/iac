@@ -1,0 +1,221 @@
+---
+
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: Adding NAT GW, requires the first CF template to be applied
+
+##
+# NAT GW requires EIPForNatGW
+# The NAT GW itself would incur cost (even it is idle)
+##
+
+Parameters:
+  RegionShortForm:
+    Description: 'us, eun1, euw1, euw2, ap and etc.'
+    Type: String
+    AllowedValues:
+      - "eun1"
+      - "euw1"
+      - "euw2"
+      - "euc1"
+      - "use1"
+      - "use2"
+    Default: "eun1"
+  Environment:
+    Description: 'Define environment'
+    Type: String
+    AllowedValues:
+      - "dev"
+      - "stg"
+      - "qa"
+      - "prod"
+    Default: "dev"
+  VPCNumber:
+    Description: 'VPC number: 01, 02 and etc.'
+    Type: String
+    Default: "02"
+    MinLength: 1
+    MaxLength: 4
+    AllowedPattern: (\d{1,4})
+    ConstraintDescription: All digits, min 1 digits, max 4 digits
+
+Mappings:
+  Subnets:
+    VPC:
+      CIDR: "10.21.0.0/16"
+    SubnetPublicBastion1:
+      CIDR: "10.21.0.0/24"
+      Tier: "Public"
+      Function: "bastion"
+      AZ: "a"
+      # Mappings are literals, can't use !Sub in here
+      # The creating Subnet section in below may name it with !Sub
+      # SubnetName: "subnet-eun1-a-dev-bastion-02"
+    SubnetPublicBastion2:
+      CIDR: "10.21.1.0/24"
+      Tier: "Public"
+      Function: "bastion"
+      AZ: "b"
+      # SubnetName: "subnet-eun1-b-dev-bastion-02"
+    SubnetPublicBastion3:
+      CIDR: "10.21.2.0/24"
+      Tier: "Public"
+      Function: "bastion"
+      AZ: "c"
+      # SubnetName: "subnet-eun1-c-dev-bastion-02"
+    SubnetPublicWeb1:
+      CIDR: "10.21.3.0/24"
+      Tier: "Public"
+      Function: "web"
+      AZ: "a"
+      # SubnetName: "subnet-eun1-a-dev-web-02"
+    SubnetPublicWeb2:
+      CIDR: "10.21.4.0/24"
+      Tier: "Public"
+      Function: "web"
+      AZ: "b"
+      # SubnetName: "subnet-eun1-b-dev-web-02"
+    SubnetPublicWeb3:
+      CIDR: "10.21.5.0/24"
+      Tier: "Public"
+      Function: "web"
+      AZ: "c"
+      # SubnetName: "subnet-eun1-c-dev-web-02"
+    SubnetPrivateApp1:
+      CIDR: "10.21.6.0/24"
+      Tier: "Private"
+      Function: "app"
+      AZ: "a"
+      # SubnetName: "subnet-eun1-a-dev-app-02"
+    SubnetPrivateApp2:
+      CIDR: "10.21.7.0/24"
+      Tier: "Private"
+      Function: "app"
+      AZ: "b"
+      # SubnetName: "subnet-eun1-b-dev-app-02"
+    SubnetPrivateApp3:
+      CIDR: "10.21.8.0/24"
+      Tier: "Private"
+      Function: "app"
+      AZ: "c"
+      # SubnetName: "subnet-eun1-c-dev-app-02"
+    SubnetPrivateDB1:
+      CIDR: "10.21.9.0/24"
+      Tier: "Private"
+      Function: "db"
+      AZ: "a"
+      # SubnetName: "subnet-eun1-a-dev-db-02"
+    SubnetPrivateDB2:
+      CIDR: "10.21.10.0/24"
+      Tier: "Private"
+      Function: "db"
+      AZ: "b"
+      # SubnetName: "subnet-eun1-b-dev-db-02"
+    SubnetPrivateDB3:
+      CIDR: "10.21.11.0/24"
+      Tier: "Private"
+      Function: "db"
+      AZ: "c"
+      # SubnetName: "subnet-eun1-c-dev-db-02"
+
+Metadata:
+  Environment: !Ref 'Environment'
+
+Resources:
+  EIPForNatGW1:
+    Type: 'AWS::EC2::EIP'
+    Properties:
+      Domain: vpc
+  EIPForNatGW2:
+    Type: 'AWS::EC2::EIP'
+    Properties:
+      Domain: vpc
+  EIPForNatGW3:
+    Type: 'AWS::EC2::EIP'
+    Properties:
+      Domain: vpc
+  NatGateway1:
+    Type: 'AWS::EC2::NatGateway'
+    Properties:
+      AllocationId: !GetAtt EIPForNatGW1.AllocationId
+      # This is the public subnet which the NAT GW would be created
+      SubnetId: !ImportValue SubnetPublicWeb1
+  NatGateway2:
+    Type: 'AWS::EC2::NatGateway'
+    Properties:
+      AllocationId: !GetAtt EIPForNatGW2.AllocationId
+      SubnetId: !ImportValue SubnetPublicWeb2
+  NatGateway3:
+    Type: 'AWS::EC2::NatGateway'
+    Properties:
+      AllocationId: !GetAtt EIPForNatGW3.AllocationId
+      SubnetId: !ImportValue SubnetPublicWeb3
+  RouteTablePrivate1: 
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !ImportValue vpc-eun1-dev-02
+      Tags:
+      - Key: Name
+        Value: routetbl-eun1-a-dev-02-private
+  RouteTablePrivate2: 
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !ImportValue vpc-eun1-dev-02
+      Tags:
+      - Key: Name
+        Value: routetbl-eun1-b-dev-02-private
+  RouteTablePrivate3: 
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !ImportValue vpc-eun1-dev-02
+      Tags:
+      - Key: Name
+        Value: routetbl-eun1-c-dev-02-private
+  RouteNatGW1: 
+    Type: 'AWS::EC2::Route'
+    Properties:
+      RouteTableId: !Ref RouteTablePrivate1
+      DestinationCidrBlock: '0.0.0.0/0'
+      NatGatewayId: !Ref NatGateway1
+  RouteNatGW2: 
+    Type: 'AWS::EC2::Route'
+    Properties:
+      RouteTableId: !Ref RouteTablePrivate2
+      DestinationCidrBlock: '0.0.0.0/0'
+      NatGatewayId: !Ref NatGateway2
+  RouteNatGW3: 
+    Type: 'AWS::EC2::Route'
+    Properties:
+      RouteTableId: !Ref RouteTablePrivate3
+      DestinationCidrBlock: '0.0.0.0/0'
+      NatGatewayId: !Ref NatGateway3
+  RouteTableAssociationApp1:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !ImportValue subnet-eun1-a-dev-app-02
+      RouteTableId: !Ref RouteTablePrivate1
+  RouteTableAssociationApp2:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !ImportValue subnet-eun1-b-dev-app-02
+      RouteTableId: !Ref RouteTablePrivate2
+  RouteTableAssociationApp3:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !ImportValue subnet-eun1-c-dev-app-02
+      RouteTableId: !Ref RouteTablePrivate3
+  RouteTableAssociationDB1:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !ImportValue subnet-eun1-a-dev-db-02
+      RouteTableId: !Ref RouteTablePrivate1
+  RouteTableAssociationDB2:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !ImportValue subnet-eun1-b-dev-db-02
+      RouteTableId: !Ref RouteTablePrivate2
+  RouteTableAssociationDB3:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !ImportValue subnet-eun1-c-dev-db-02
+      RouteTableId: !Ref RouteTablePrivate3

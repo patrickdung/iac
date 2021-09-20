@@ -1,0 +1,79 @@
+---
+
+AWSTemplateFormatVersion: 2010-09-09
+Description: Create RDS
+Parameters:
+  StackNameOfVPC:
+    Description: >-
+      Provide stack name of the VPC to get the SubnetGroup of the database
+    Type: String
+  DBInstanceClass:
+    Type: String 
+    Description: RDS instance class 
+    AllowedValues:
+      - db.t3.micro
+      - db.t3.small
+    Default: db.t3.micro
+  EngineVersion:
+    Type: String
+    Description: Database engine version
+    AllowedValues:
+      - 12.5
+      - 13.2
+    Default: 13.2
+  MasterUsername:
+    Type: String 
+    Description: Master username for the database instance
+    Default: postgres
+  MasterUserPassword:
+    Type: String 
+    Description: Master password for the database instance
+    MinLength: 8
+    Default: initialPassword
+    NoEcho: true
+  MultiAZ:
+    Type: String
+    Description: Enable Multi-AZ for the database instance
+    AllowedValues:
+      - true 
+      - false
+    ConstraintDescription: MultiAZ parameter should be either true or false
+    Default: false
+  AllocatedStorage:
+    Type: Number 
+    Description: Database storage size in GB
+    MinValue: 5
+    MaxValue: 20
+    ConstraintDescription: AllocatedStorage should be at minimum 5GB (when create via CloudFormation)
+    Default: 6
+Resources:
+  RDSdb01:
+    Type: AWS::RDS::DBInstance
+    UpdateReplacePolicy: "Retain"
+    DeletionPolicy: "Retain"
+    Properties:
+      DeletionProtection: true
+      Engine: "postgres"
+      EngineVersion: !Ref EngineVersion
+      DBInstanceClass: !Ref DBInstanceClass
+      DBInstanceIdentifier: "eun1-qa-rds-db01"
+      DBSubnetGroupName:
+        Fn::ImportValue:
+          !Sub "${StackNameOfVPC}-SubnetGroupDB"
+      MultiAZ: !Ref MultiAZ
+      MasterUsername: !Ref MasterUsername
+      MasterUserPassword: !Ref MasterUserPassword
+      AllocatedStorage: !Ref AllocatedStorage
+      StorageType: gp2
+      BackupRetentionPeriod: 3
+      EnablePerformanceInsights: true
+      PerformanceInsightsRetentionPeriod: 7
+      Tags:
+        - Key: Name
+          Value: "eun1-qa-rds-db01"
+        - Key: Environment
+          Value: "qa"
+Outputs:
+  RDSdb01:
+    Description: "Endpoint Address of database"
+    Value: !GetAtt RDSdb01.Endpoint.Address

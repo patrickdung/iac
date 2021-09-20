@@ -1,0 +1,74 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  Allow VPC {{ vpcNumber }} {{ environment }} SubnetPublicWeb
+  to access SubnetPrivateDB database port
+Parameters:
+  StackNameOfVPC:
+    Description: >-
+      Provide stack name of the VPC to get the SubnetGroup of the database
+    Type: String
+  AllowDestinationPortDbPgSql:
+    Description: Ingress ports to allow PgSql port (5432) -1 for not enabling this ingress
+    Type: Number
+    MinValue: -1
+    MaxValue: 65535
+    Default: 5432
+  AllowDestinationPortDbMySql:
+    Description: Ingress ports to allow MySql port (3306), -1 for not enabling this ingress
+    Type: Number
+    MinValue: -1
+    MaxValue: 65535
+    Default: -1
+  AllowDestinationPortDbOracle:
+    Description: Ingress ports to allow Oracle port (1521), -1 for not enabling this ingress
+    Type: Number
+    MinValue: -1
+    MaxValue: 65535
+    Default: -1
+  AllowDestinationPortDbMsSql:
+    Description: Ingress ports to allow MsSql port (1433), -1 for not enabling this ingress
+    Type: Number
+    MinValue: -1
+    MaxValue: 65535
+    Default: -1
+
+Conditions:
+  {#- AllowIngressPgSql: !If [ !Ref AllowDestinationPortDbPgSql, !Ref AllowDestinationPortDbPgSql, !Ref 'AWS::NoValue' ] #}
+  AllowIngressPgSql: !Not [!Equals [!Ref AllowDestinationPortDbPgSql, "-1"]]
+  AllowIngressMySql: !Not [!Equals [!Ref AllowDestinationPortDbMySql, "-1"]]
+  AllowIngressOracle: !Not [!Equals [!Ref AllowDestinationPortDbOracle, "-1"]]
+  AllowIngressMsSql: !Not [!Equals [!Ref AllowDestinationPortDbMsSql, "-1"]]
+
+Resources:
+  SecurityGroupWebToDb:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Security Group for vpc {{ vpcNumber }} {{ environment }} Web to {{ environment }} DB"
+      GroupName: "secgroup-{{ region }}-{{ environment }}-web-to-{{ environment }}-db"
+      VpcId:
+        Fn::ImportValue:
+          !Sub "${StackNameOfVPC}-VPCID"
+      Tags:
+        - Key: Name
+          Value: "secgroup-{{ region }}-{{ environment }}-web-to-{{ environment }}-db"
+
+  {%- for dataBaseType in ['PgSql','MySql','Oracle','MsSql'] %}
+  {%- for i in range (1,4) %}
+  SecurityGroupIngressRuleWebToDb{{dataBaseType}}{{i}}:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: AllowIngress{{dataBaseType}}
+    Properties:
+      Description: "Allow ingress from SubnetPublicWeb{{ i }} to database port"
+      GroupId:
+        Fn::GetAtt:
+        - SecurityGroupWebToDb
+        - GroupId
+      CidrIp:
+        Fn::ImportValue:
+          !Sub "${StackNameOfVPC}-cidrSubnetPublicWeb{{ i }}"
+      IpProtocol: tcp
+      FromPort: !Ref AllowDestinationPortDb{{dataBaseType}}
+      ToPort: !Ref AllowDestinationPortDb{{dataBaseType}}
+  {% endfor %}
+  {%- endfor %}

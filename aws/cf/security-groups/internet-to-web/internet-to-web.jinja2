@@ -1,0 +1,122 @@
+{%- if AllowIngressPortSSH is not defined %}
+{%- set AllowIngressPortSSH = -1 %} 
+{%- endif %}
+{%- if AllowIngressPortHTTP is not defined %}
+{%- set AllowIngressPortHTTP = -1 %} 
+{%- endif %}
+{%- if AllowIngressPortHTTPS is not defined %}
+{%- set AllowIngressPortHTTPS = -1 %} 
+{%- endif %}
+{%- if AllowIngressICMPPing is not defined %}
+{%- set AllowIngressICMPPing = false %} 
+{%- endif %}
+---
+
+# Note it seems there is no 'ICMPv6 Ping', just allow/deny all types of ICMPv6
+
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  Allow VPC {{ vpcNumber }} {{ environment }}
+  Internet to access SubnetPublicWeb servers
+Parameters:
+  StackNameOfVPC:
+    Description: >-
+      Provide stack name of the VPC to get the SubnetGroup of the Web servers
+    Type: String
+  AllowIngressPortSSH:
+    Description: Ingress to allow SSH port (22), -1 for not enabling this ingress
+    Type: Number
+    MinValue: -1
+    MaxValue: 65535
+    Default: {{AllowIngressPortSSH}}
+  AllowIngressPortHTTP:
+    Description: Ingress to allow HTTP port (80), -1 for not enabling this ingress
+    Type: Number
+    MinValue: -1
+    MaxValue: 65535
+    Default: {{AllowIngressPortHTTP}}
+  AllowIngressPortHTTPS:
+    Description: Ingress to allow HTTPS port (443), -1 for not enabling this ingress
+    Type: Number
+    MinValue: -1
+    MaxValue: 65535
+    Default: {{AllowIngressPortHTTPS}}
+  AllowIngressICMPPing:
+    Description: Ingress to allow ICMP Ping, false for not enabling this ingress
+    Type: String
+    AllowedValues:
+      - true
+      - false
+    ConstraintDescription: Must be true or false
+    Default: {{AllowIngressICMPPing}}
+
+Conditions:
+  {#- AllowIngressSSH: !If [ !Ref AllowIngressPortSSH, !Ref AllowIngressPortSSH, !Ref 'AWS::NoValue' ] #}
+  AllowIngressSSH: !Not [!Equals [!Ref AllowIngressPortSSH, "-1"]]
+  AllowIngressHTTP: !Not [!Equals [!Ref AllowIngressPortHTTP, "-1"]]
+  AllowIngressHTTPS: !Not [!Equals [!Ref AllowIngressPortHTTPS, "-1"]]
+  AllowIngressICMPPing: !Not [!Equals [!Ref AllowIngressICMPPing, "false"]]
+
+Resources:
+  SecurityGroupInternetToWeb:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Security Group for vpc {{ vpcNumber }} Internet to {{ environment }} Web"
+      GroupName: "secgroup-{{ region }}-internet-to-{{ environment }}-web"
+      VpcId:
+        Fn::ImportValue:
+          !Sub "${StackNameOfVPC}-VPCID"
+      Tags:
+        - Key: Name
+          Value: "secgroup-{{ region }}-internet-to-{{ environment }}-web"
+
+  {%- for IPVersion in ['IPv4', 'IPv6'] %}
+  {%- for TCPPort in ['SSH','HTTP','HTTPS'] %}
+  {%- for i in range (1,4) %}
+  SecurityGroupIngressRule{{IPVersion}}InternetToSubnetPublicWeb{{i}}{{TCPPort}}:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: AllowIngress{{TCPPort}}
+    Properties:
+      Description: "Allow ingress from Internet {{IPVersion}} to SubnetPublicWeb{{i}} {{TCPPort}}"
+      GroupId:
+        Fn::GetAtt:
+        - SecurityGroupInternetToWeb
+        - GroupId
+      {%- if IPVersion == 'IPv4' %}
+      CidrIp: '0.0.0.0/0'
+      {%- else %}
+        {%- if IPVersion == 'IPv6' %}
+      CidrIpv6: '::/0'
+        {%- endif %}
+      {%- endif %}
+      IpProtocol: tcp
+      FromPort: !Ref AllowIngressPort{{TCPPort}}
+      ToPort: !Ref AllowIngressPort{{TCPPort}}
+  {% endfor %}
+  {%- endfor %}
+  {%- endfor %}
+
+  {%- for IPVersion in ['IPv4', 'IPv6'] %}
+  {%- for i in range (1,4) %}
+  SecurityGroupIngressRule{{IPVersion}}InternetToSubnetPublicWeb{{i}}ICMPPing:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: AllowIngressICMPPing
+    Properties:
+      Description: "Allow ingress from Internet {{IPVersion}} to SubnetPublicWeb{{i}} ICMP Ping"
+      GroupId:
+        Fn::GetAtt:
+        - SecurityGroupInternetToWeb
+        - GroupId
+      {%- if IPVersion == 'IPv4' %}
+      CidrIp: '0.0.0.0/0'
+      IpProtocol: icmp
+      {%- else %}
+        {%- if IPVersion == 'IPv6' %}
+      CidrIpv6: '::/0'
+      IpProtocol: icmpv6
+        {%- endif %}
+      {%- endif %}
+      FromPort: 8
+      ToPort: -1
+  {% endfor %}
+  {%- endfor %}

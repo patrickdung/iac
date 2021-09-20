@@ -1,0 +1,245 @@
+---
+
+##
+# Specifying region/environment does not mean the resource would be created in there
+# This template references the stack name of the VPC
+# The location of the EC2 would be created according to what is specified in that stack
+##
+
+AWSTemplateFormatVersion: '2010-09-09'
+
+Description: >-
+  Create an EC2 instance
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: 'Amazon EC2 Configuration'
+        Parameters:
+          - AmiId
+    ParameterLabels:
+      AmiId:
+        default: 'Amazon Machine Image ID'
+
+Parameters:
+  Environment:
+    Description: 'Define environment'
+    Type: String
+    AllowedValues:
+      - "dev"
+      - "stg"
+      - "qa"
+      - "prd"
+    Default: "qa"
+    ConstraintDescription: 'Specify either Dev, Stg, QA or Prod'
+
+  StackNameOfVPC:
+    Description: >-
+      Provide stack name of the VPC so as to create EC2 in that VPC/Subnet
+    Type: String
+
+  StackNameOfCWAgent:
+    Description: >-
+      Provide the stack name that creates the SSM CW Agent for Web servers
+    Type: String
+
+  NodeId:
+    Description: 'Node ID to identify between EC2'
+    Type: String
+    Default: "web01"
+    AllowedPattern: ([a-zA-Z]*\d{1,4})
+    MinLength: 3
+    MaxLength: 20
+    ConstraintDescription: >-
+      Start with letters, then with min 1 digits, max 4 digits.
+      Total min 3 characters, max 20 characters 
+
+  EC2InstanceClass:
+    Type: String 
+    Description: EC2 instance class
+    AllowedValues:
+      - t4g.nano
+      - t4g.micro
+      - t4g.small
+      - t4g.medium
+    Default: t4g.micro
+  
+  AmiId:
+    Description: 'AMI ID, you must use the same platform (x86_64/arm64) that matches the EC2 instance class'
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-arm64-gp2
+
+  SubnetNameOfInstance:
+    Type: String 
+    Description: Subnet to use for the instance
+    AllowedValues:
+      - SubnetPublicWeb1
+      - SubnetPublicWeb2
+      - SubnetPublicWeb3
+    Default: SubnetPublicWeb1
+
+  KeyName:
+    Description: Provide an existing EC2 Key Pair for this EC2 instance
+    Type: 'AWS::EC2::KeyPair::KeyName'
+
+  RootDiskStorageSize:
+    Type: Number 
+    Description: Size of root disk storage in GB
+    MinValue: 8
+    ConstraintDescription: Root disk should be at minimum 8GB
+    Default: 8
+
+  SSMKey:
+    Description: Name of parameter that contains the JSON configuration of CWAgent
+    Type : String
+    Default: SystemsManager-CWAgentConfig-Web
+
+
+
+Resources:
+  
+  EC2Instance:
+    UpdateReplacePolicy: "Retain"
+    DeletionPolicy: "Retain"
+    Type: AWS::EC2::Instance
+    Metadata:
+      AWS::CloudFormation::Init:
+        configSets:
+          default:
+            - 01_setupCfnHup
+            - 02_config-amazon-cloudwatch-agent
+            - 03_restart_amazon-cloudwatch-agent
+          UpdateEnvironment:
+            - 02_config-amazon-cloudwatch-agent
+            - 03_restart_amazon-cloudwatch-agent
+        # Definition of a dummy file, that change the contents of the dummy file can trigger the agent to reload the configuration from SSM parameter store.
+        02_config-amazon-cloudwatch-agent:
+          files:
+            '/opt/aws/amazon-cloudwatch-agent/etc/dummy.version':
+              content: |
+                "You can change the VERSION below to to simulate the update of metadata"
+                "VERSION=1.0"
+        # Invoke amazon-cloudwatch-agent-ctl to restart the AmazonCloudWatchAgent.
+        03_restart_amazon-cloudwatch-agent:
+          commands:
+            01_stop_service:
+              command: /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a stop
+            02_start_service:
+              command:
+                Fn::Sub:
+                  - |
+                    /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c ssm:${ssmkey} -s
+                  - ssmkey:
+                      Fn::ImportValue:
+                        !Sub "${StackNameOfCWAgent}-CWAgentConfig-Web"
+        # Cfn-hup setting, it is to monitor the change of metadata.
+        # When there is change in the contents of json file in the metadata section, cfn-hup will call cfn-init to restart the AmazonCloudWatchAgent.
+        01_setupCfnHup:
+          files:
+              '/etc/cfn/cfn-hup.conf':
+                content: |
+                  [main]
+                  stack=${AWS::StackId}
+                  region=${AWS::Region}
+                  interval=1
+                mode: '000400'
+                owner: root
+                group: root
+              '/etc/cfn/hooks.d/amazon-cloudwatch-agent-auto-reloader.conf':
+                content: |
+                  [cfn-auto-reloader-hook]
+                  triggers=post.update
+                  path=Resources.EC2Instance.Metadata.AWS::CloudFormation::Init.02_config-amazon-cloudwatch-agent
+                  action=/opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource EC2Instance --region ${AWS::Region} --configsets UpdateEnvironment
+                  runas=root
+                mode: '000400'
+                owner: root
+                group: root
+              "/lib/systemd/system/cfn-hup.service":
+                content: |
+                  [Unit]
+                  Description=cfn-hup daemon
+                  [Service]
+                  Type=simple
+                  ExecStart=/opt/aws/bin/cfn-hup
+                  Restart=always
+                  [Install]
+                  WantedBy=multi-user.target
+          commands:
+            01enable_cfn_hup:
+              command: |
+                systemctl enable cfn-hup.service
+            02start_cfn_hup:
+              command: |
+                systemctl start cfn-hup.service
+          
+    Properties:
+      ImageId: !Ref AmiId
+      InstanceType: !Ref EC2InstanceClass
+      SubnetId:
+        Fn::ImportValue:
+          !Sub "${StackNameOfVPC}-${SubnetNameOfInstance}"
+      KeyName: !Ref KeyName
+      IamInstanceProfile: !Ref WebServerInstanceProfile
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeType: gp2
+            VolumeSize: !Ref RootDiskStorageSize
+            DeleteOnTermination: false
+            Encrypted: false
+      Tags:
+        - Key: Name
+          Value: !Join [ '-', [ 'eun1', !Ref Environment, 'web', !Ref NodeId ] ]
+      UserData:
+        Fn::Base64:
+          Fn::Sub:
+            - |
+                #!/bin/bash -xe
+                # 1. System update
+                yum -y update
+                # 2. Upgrade (with --obsolete meaning)
+                # yum -y upgrade
+                # 3. Install other useful packages
+                # yamllint is in EPEL but dependency is not resolved
+                yum install -y tmux git jq tree telnet
+                # 4. CW Agent
+                rpm -Uvh https://s3.amazonaws.com/amazoncloudwatch-agent/amazon_linux/arm64/latest/amazon-cloudwatch-agent.rpm
+                mkdir -p /usr/share/collectd/
+                touch /usr/share/collectd/types.db
+                /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c ssm:${ssmkey} -s
+                /opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource EC2Instance --region ${AWS::Region} --configsets default
+                /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackId} --resource EC2Instance --region ${AWS::Region}
+            - ssmkey:
+                Fn::ImportValue:
+                  !Sub "${StackNameOfCWAgent}-CWAgentConfig-Web"
+    CreationPolicy:
+      ResourceSignal:
+        Count: 1
+        Timeout: PT15M
+
+  WebServerEIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      InstanceId: !Ref EC2Instance
+      Tags:
+        - Key: Name
+          Value: !Join [ '-', [ 'eun1', !Ref Environment, 'eip', 'web', !Ref NodeId ] ]
+
+  WebServerInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+        - Custom-EC2ToSSM
+
+Outputs:
+  WebServerPublicDNS:
+    Description: 'Public DNS of EC2 instance'
+    Value: !GetAtt EC2Instance.PublicDnsName
+
+  WebServerElasticIP:
+    Description: 'Elastic IP assigned to EC2'
+    Value: !Ref WebServerEIP

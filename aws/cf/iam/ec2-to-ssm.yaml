@@ -1,0 +1,21 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+Description: Create IAM role for EC2 instances to access SSM
+Resources:
+  CustomIAMRoleEC2ToSSM:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: >-
+        "Custom Role - Enables EC2 instances to access SSM with CW Logs and Agent support."
+      RoleName: Custom-EC2ToSSM
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy

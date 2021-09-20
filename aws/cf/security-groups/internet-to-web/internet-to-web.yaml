@@ -1,0 +1,395 @@
+
+---
+
+# Note it seems there is no 'ICMPv6 Ping', just allow/deny all types of ICMPv6
+
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  Allow VPC 01 qa
+  Internet to access SubnetPublicWeb servers
+Parameters:
+  StackNameOfVPC:
+    Description: >-
+      Provide stack name of the VPC to get the SubnetGroup of the Web servers
+    Type: String
+  AllowIngressPortSSH:
+    Description: Ingress to allow SSH port (22), -1 for not enabling this ingress
+    Type: Number
+    MinValue: -1
+    MaxValue: 65535
+    Default: 22
+  AllowIngressPortHTTP:
+    Description: Ingress to allow HTTP port (80), -1 for not enabling this ingress
+    Type: Number
+    MinValue: -1
+    MaxValue: 65535
+    Default: 80
+  AllowIngressPortHTTPS:
+    Description: Ingress to allow HTTPS port (443), -1 for not enabling this ingress
+    Type: Number
+    MinValue: -1
+    MaxValue: 65535
+    Default: 443
+  AllowIngressICMPPing:
+    Description: Ingress to allow ICMP Ping, false for not enabling this ingress
+    Type: String
+    AllowedValues:
+      - true
+      - false
+    ConstraintDescription: Must be true or false
+    Default: true
+
+Conditions:
+  AllowIngressSSH: !Not [!Equals [!Ref AllowIngressPortSSH, "-1"]]
+  AllowIngressHTTP: !Not [!Equals [!Ref AllowIngressPortHTTP, "-1"]]
+  AllowIngressHTTPS: !Not [!Equals [!Ref AllowIngressPortHTTPS, "-1"]]
+  AllowIngressICMPPing: !Not [!Equals [!Ref AllowIngressICMPPing, "false"]]
+
+Resources:
+  SecurityGroupInternetToWeb:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Security Group for vpc 01 Internet to qa Web"
+      GroupName: "secgroup-eun1-internet-to-qa-web"
+      VpcId:
+        Fn::ImportValue:
+          !Sub "${StackNameOfVPC}-VPCID"
+      Tags:
+        - Key: Name
+          Value: "secgroup-eun1-internet-to-qa-web"
+  SecurityGroupIngressRuleIPv4InternetToSubnetPublicWeb1SSH:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: AllowIngressSSH
+    Properties:
+      Description: "Allow ingress from Internet IPv4 to SubnetPublicWeb1 SSH"
+      GroupId:
+        Fn::GetAtt:
+        - SecurityGroupInternetToWeb
+        - GroupId
+      CidrIp: '0.0.0.0/0'
+      IpProtocol: tcp
+      FromPort: !Ref AllowIngressPortSSH
+      ToPort: !Ref AllowIngressPortSSH
+  
+  SecurityGroupIngressRuleIPv4InternetToSubnetPublicWeb2SSH:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: AllowIngressSSH
+    Properties:
+      Description: "Allow ingress from Internet IPv4 to SubnetPublicWeb2 SSH"
+      GroupId:
+        Fn::GetAtt:
+        - SecurityGroupInternetToWeb
+        - GroupId
+      CidrIp: '0.0.0.0/0'
+      IpProtocol: tcp
+      FromPort: !Ref AllowIngressPortSSH
+      ToPort: !Ref AllowIngressPortSSH
+  
+  SecurityGroupIngressRuleIPv4InternetToSubnetPublicWeb3SSH:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: AllowIngressSSH
+    Properties:
+      Description: "Allow ingress from Internet IPv4 to SubnetPublicWeb3 SSH"
+      GroupId:
+        Fn::GetAtt:
+        - SecurityGroupInternetToWeb
+        - GroupId
+      CidrIp: '0.0.0.0/0'
+      IpProtocol: tcp
+      FromPort: !Ref AllowIngressPortSSH
+      ToPort: !Ref AllowIngressPortSSH
+  
+  SecurityGroupIngressRuleIPv4InternetToSubnetPublicWeb1HTTP:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: AllowIngressHTTP
+    Properties:
+      Description: "Allow ingress from Internet IPv4 to SubnetPublicWeb1 HTTP"
+      GroupId:
+        Fn::GetAtt:
+        - SecurityGroupInternetToWeb
+        - GroupId
+      CidrIp: '0.0.0.0/0'
+      IpProtocol: tcp
+      FromPort: !Ref AllowIngressPortHTTP
+      ToPort: !Ref AllowIngressPortHTTP
+  
+  SecurityGroupIngressRuleIPv4InternetToSubnetPublicWeb2HTTP:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: AllowIngressHTTP
+    Properties:
+      Description: "Allow ingress from Internet IPv4 to SubnetPublicWeb2 HTTP"
+      GroupId:
+        Fn::GetAtt:
+        - SecurityGroupInternetToWeb
+        - GroupId
+      CidrIp: '0.0.0.0/0'
+      IpProtocol: tcp
+      FromPort: !Ref AllowIngressPortHTTP
+      ToPort: !Ref AllowIngressPortHTTP
+  
+  SecurityGroupIngressRuleIPv4InternetToSubnetPublicWeb3HTTP:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: AllowIngressHTTP
+    Properties:
+      Description: "Allow ingress from Internet IPv4 to SubnetPublicWeb3 HTTP"
+      GroupId:
+        Fn::GetAtt:
+        - SecurityGroupInternetToWeb
+        - GroupId
+      CidrIp: '0.0.0.0/0'
+      IpProtocol: tcp
+      FromPort: !Ref AllowIngressPortHTTP
+      ToPort: !Ref AllowIngressPortHTTP
+  
+  SecurityGroupIngressRuleIPv4InternetToSubnetPublicWeb1HTTPS:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: AllowIngressHTTPS
+    Properties:
+      Description: "Allow ingress from Internet IPv4 to SubnetPublicWeb1 HTTPS"
+      GroupId:
+        Fn::GetAtt:
+        - SecurityGroupInternetToWeb
+        - GroupId
+      CidrIp: '0.0.0.0/0'
+      IpProtocol: tcp
+      FromPort: !Ref AllowIngressPortHTTPS
+      ToPort: !Ref AllowIngressPortHTTPS
+  
+  SecurityGroupIngressRuleIPv4InternetToSubnetPublicWeb2HTTPS:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: AllowIngressHTTPS
+    Properties:
+      Description: "Allow ingress from Internet IPv4 to SubnetPublicWeb2 HTTPS"
+      GroupId:
+        Fn::GetAtt:
+        - SecurityGroupInternetToWeb
+        - GroupId
+      CidrIp: '0.0.0.0/0'
+      IpProtocol: tcp
+      FromPort: !Ref AllowIngressPortHTTPS
+      ToPort: !Ref AllowIngressPortHTTPS
+  
+  SecurityGroupIngressRuleIPv4InternetToSubnetPublicWeb3HTTPS:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: AllowIngressHTTPS
+    Properties:
+      Description: "Allow ingress from Internet IPv4 to SubnetPublicWeb3 HTTPS"
+      GroupId:
+        Fn::GetAtt:
+        - SecurityGroupInternetToWeb
+        - GroupId
+      CidrIp: '0.0.0.0/0'
+      IpProtocol: tcp
+      FromPort: !Ref AllowIngressPortHTTPS
+      ToPort: !Ref AllowIngressPortHTTPS
+  
+  SecurityGroupIngressRuleIPv6InternetToSubnetPublicWeb1SSH:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: AllowIngressSSH
+    Properties:
+      Description: "Allow ingress from Internet IPv6 to SubnetPublicWeb1 SSH"
+      GroupId:
+        Fn::GetAtt:
+        - SecurityGroupInternetToWeb
+        - GroupId
+      CidrIpv6: '::/0'
+      IpProtocol: tcp
+      FromPort: !Ref AllowIngressPortSSH
+      ToPort: !Ref AllowIngressPortSSH
+  
+  SecurityGroupIngressRuleIPv6InternetToSubnetPublicWeb2SSH:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: AllowIngressSSH
+    Properties:
+      Description: "Allow ingress from Internet IPv6 to SubnetPublicWeb2 SSH"
+      GroupId:
+        Fn::GetAtt:
+        - SecurityGroupInternetToWeb
+        - GroupId
+      CidrIpv6: '::/0'
+      IpProtocol: tcp
+      FromPort: !Ref AllowIngressPortSSH
+      ToPort: !Ref AllowIngressPortSSH
+  
+  SecurityGroupIngressRuleIPv6InternetToSubnetPublicWeb3SSH:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: AllowIngressSSH
+    Properties:
+      Description: "Allow ingress from Internet IPv6 to SubnetPublicWeb3 SSH"
+      GroupId:
+        Fn::GetAtt:
+        - SecurityGroupInternetToWeb
+        - GroupId
+      CidrIpv6: '::/0'
+      IpProtocol: tcp
+      FromPort: !Ref AllowIngressPortSSH
+      ToPort: !Ref AllowIngressPortSSH
+  
+  SecurityGroupIngressRuleIPv6InternetToSubnetPublicWeb1HTTP:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: AllowIngressHTTP
+    Properties:
+      Description: "Allow ingress from Internet IPv6 to SubnetPublicWeb1 HTTP"
+      GroupId:
+        Fn::GetAtt:
+        - SecurityGroupInternetToWeb
+        - GroupId
+      CidrIpv6: '::/0'
+      IpProtocol: tcp
+      FromPort: !Ref AllowIngressPortHTTP
+      ToPort: !Ref AllowIngressPortHTTP
+  
+  SecurityGroupIngressRuleIPv6InternetToSubnetPublicWeb2HTTP:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: AllowIngressHTTP
+    Properties:
+      Description: "Allow ingress from Internet IPv6 to SubnetPublicWeb2 HTTP"
+      GroupId:
+        Fn::GetAtt:
+        - SecurityGroupInternetToWeb
+        - GroupId
+      CidrIpv6: '::/0'
+      IpProtocol: tcp
+      FromPort: !Ref AllowIngressPortHTTP
+      ToPort: !Ref AllowIngressPortHTTP
+  
+  SecurityGroupIngressRuleIPv6InternetToSubnetPublicWeb3HTTP:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: AllowIngressHTTP
+    Properties:
+      Description: "Allow ingress from Internet IPv6 to SubnetPublicWeb3 HTTP"
+      GroupId:
+        Fn::GetAtt:
+        - SecurityGroupInternetToWeb
+        - GroupId
+      CidrIpv6: '::/0'
+      IpProtocol: tcp
+      FromPort: !Ref AllowIngressPortHTTP
+      ToPort: !Ref AllowIngressPortHTTP
+  
+  SecurityGroupIngressRuleIPv6InternetToSubnetPublicWeb1HTTPS:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: AllowIngressHTTPS
+    Properties:
+      Description: "Allow ingress from Internet IPv6 to SubnetPublicWeb1 HTTPS"
+      GroupId:
+        Fn::GetAtt:
+        - SecurityGroupInternetToWeb
+        - GroupId
+      CidrIpv6: '::/0'
+      IpProtocol: tcp
+      FromPort: !Ref AllowIngressPortHTTPS
+      ToPort: !Ref AllowIngressPortHTTPS
+  
+  SecurityGroupIngressRuleIPv6InternetToSubnetPublicWeb2HTTPS:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: AllowIngressHTTPS
+    Properties:
+      Description: "Allow ingress from Internet IPv6 to SubnetPublicWeb2 HTTPS"
+      GroupId:
+        Fn::GetAtt:
+        - SecurityGroupInternetToWeb
+        - GroupId
+      CidrIpv6: '::/0'
+      IpProtocol: tcp
+      FromPort: !Ref AllowIngressPortHTTPS
+      ToPort: !Ref AllowIngressPortHTTPS
+  
+  SecurityGroupIngressRuleIPv6InternetToSubnetPublicWeb3HTTPS:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: AllowIngressHTTPS
+    Properties:
+      Description: "Allow ingress from Internet IPv6 to SubnetPublicWeb3 HTTPS"
+      GroupId:
+        Fn::GetAtt:
+        - SecurityGroupInternetToWeb
+        - GroupId
+      CidrIpv6: '::/0'
+      IpProtocol: tcp
+      FromPort: !Ref AllowIngressPortHTTPS
+      ToPort: !Ref AllowIngressPortHTTPS
+  
+  SecurityGroupIngressRuleIPv4InternetToSubnetPublicWeb1ICMPPing:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: AllowIngressICMPPing
+    Properties:
+      Description: "Allow ingress from Internet IPv4 to SubnetPublicWeb1 ICMP Ping"
+      GroupId:
+        Fn::GetAtt:
+        - SecurityGroupInternetToWeb
+        - GroupId
+      CidrIp: '0.0.0.0/0'
+      IpProtocol: icmp
+      FromPort: 8
+      ToPort: -1
+  
+  SecurityGroupIngressRuleIPv4InternetToSubnetPublicWeb2ICMPPing:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: AllowIngressICMPPing
+    Properties:
+      Description: "Allow ingress from Internet IPv4 to SubnetPublicWeb2 ICMP Ping"
+      GroupId:
+        Fn::GetAtt:
+        - SecurityGroupInternetToWeb
+        - GroupId
+      CidrIp: '0.0.0.0/0'
+      IpProtocol: icmp
+      FromPort: 8
+      ToPort: -1
+  
+  SecurityGroupIngressRuleIPv4InternetToSubnetPublicWeb3ICMPPing:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: AllowIngressICMPPing
+    Properties:
+      Description: "Allow ingress from Internet IPv4 to SubnetPublicWeb3 ICMP Ping"
+      GroupId:
+        Fn::GetAtt:
+        - SecurityGroupInternetToWeb
+        - GroupId
+      CidrIp: '0.0.0.0/0'
+      IpProtocol: icmp
+      FromPort: 8
+      ToPort: -1
+  
+  SecurityGroupIngressRuleIPv6InternetToSubnetPublicWeb1ICMPPing:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: AllowIngressICMPPing
+    Properties:
+      Description: "Allow ingress from Internet IPv6 to SubnetPublicWeb1 ICMP Ping"
+      GroupId:
+        Fn::GetAtt:
+        - SecurityGroupInternetToWeb
+        - GroupId
+      CidrIpv6: '::/0'
+      IpProtocol: icmpv6
+      FromPort: 8
+      ToPort: -1
+  
+  SecurityGroupIngressRuleIPv6InternetToSubnetPublicWeb2ICMPPing:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: AllowIngressICMPPing
+    Properties:
+      Description: "Allow ingress from Internet IPv6 to SubnetPublicWeb2 ICMP Ping"
+      GroupId:
+        Fn::GetAtt:
+        - SecurityGroupInternetToWeb
+        - GroupId
+      CidrIpv6: '::/0'
+      IpProtocol: icmpv6
+      FromPort: 8
+      ToPort: -1
+  
+  SecurityGroupIngressRuleIPv6InternetToSubnetPublicWeb3ICMPPing:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: AllowIngressICMPPing
+    Properties:
+      Description: "Allow ingress from Internet IPv6 to SubnetPublicWeb3 ICMP Ping"
+      GroupId:
+        Fn::GetAtt:
+        - SecurityGroupInternetToWeb
+        - GroupId
+      CidrIpv6: '::/0'
+      IpProtocol: icmpv6
+      FromPort: 8
+      ToPort: -1
+  

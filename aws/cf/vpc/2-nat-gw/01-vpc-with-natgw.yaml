@@ -1,0 +1,797 @@
+---
+
+## 
+# Need to fix:
+# 1. It does not configure a name for the default NACL and default SG
+# 2. IPv6 subnet is 'hard coded' in the subnet sections
+# 3. Route table Private, the name has hardcode a/b/c not dynamic
+# Not referencing from the actual region
+##
+
+##
+# Notice:
+# 1. This template assumes you choose the correct region
+# There is no checking, you may have subnets created with the wrong names
+# 2. It assumes the AZ to use is in order of a,b,c
+# 3. NAT GW requires EIP
+# The NAT GW itself would incur cost (even it is idle)
+##
+
+##
+# Tags to add:
+# NAT GW, default ACL
+##
+
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: >
+  CF template to create subnets
+  Bastion hosts (pub), web (pub), app, and database
+
+Parameters:
+  RegionShortForm:
+    Description: 'us, eun1, euw1, euw2, ap and etc.'
+    Type: String
+    AllowedValues:
+      - "eun1"
+      - "euw1"
+      - "euw2"
+      - "euc1"
+      - "use1"
+      - "use2"
+    Default: "eun1"
+  Environment:
+    Description: 'Define environment'
+    Type: String
+    AllowedValues:
+      - "dev"
+      - "stg"
+      - "qa"
+      - "prod"
+    Default: "dev"
+  VPCNumber:
+    Description: 'VPC number: 01, 02 and etc.'
+    Type: String
+    Default: "02"
+    MinLength: 1
+    MaxLength: 4 
+    AllowedPattern: (\d{1,4})
+    ConstraintDescription: All digits, min 1 digits, max 4 digits
+  VPCName:
+    Description: Name of the VPC. Please update it accroding to the setting you want to create
+    Type: String
+    Default: "vpc-eun1-dev-02"
+    ##
+    # Not working for Parameters
+    # https://stackoverflow.com/questions/62395211/default-value-aws-replace-with-pseudo-parameter-reference
+    # Default:
+    #  !Sub
+    #    - "vpc-${RegionShortForm}-${Environment}-${VPCNumber}"
+    #    - RegionShortForm: !Ref 'RegionShortForm'
+    #      Environment: !Ref 'Environment'
+    #      VPCNumber: !Ref 'VPCNumber'
+    ##
+
+Mappings:
+  Subnets:
+    VPC:
+      CIDR: "10.21.0.0/16"
+    SubnetPublicBastion1:
+      CIDR: "10.21.0.0/24"
+      Tier: "Public"
+      Function: "bastion"
+      AZ: "a"
+      # Mappings are literals, can't use !Sub in here
+      # The creating Subnet section in below may name it with !Sub
+      # SubnetName: "subnet-eun1-a-dev-bastion-02"
+    SubnetPublicBastion2:
+      CIDR: "10.21.1.0/24"
+      Tier: "Public"
+      Function: "bastion"
+      AZ: "b"
+      # SubnetName: "subnet-eun1-b-dev-bastion-02"
+    SubnetPublicBastion3:
+      CIDR: "10.21.2.0/24"
+      Tier: "Public"
+      Function: "bastion"
+      AZ: "c"
+      # SubnetName: "subnet-eun1-c-dev-bastion-02"
+    SubnetPublicWeb1:
+      CIDR: "10.21.3.0/24"
+      Tier: "Public"
+      Function: "web"
+      AZ: "a"
+      # SubnetName: "subnet-eun1-a-dev-web-02"
+    SubnetPublicWeb2:
+      CIDR: "10.21.4.0/24"
+      Tier: "Public"
+      Function: "web"
+      AZ: "b"
+      # SubnetName: "subnet-eun1-b-dev-web-02"
+    SubnetPublicWeb3:
+      CIDR: "10.21.5.0/24"
+      Tier: "Public"
+      Function: "web"
+      AZ: "c"
+      # SubnetName: "subnet-eun1-c-dev-web-02"
+    SubnetPrivateApp1:
+      CIDR: "10.21.6.0/24"
+      Tier: "Private"
+      Function: "app"
+      AZ: "a"
+      # SubnetName: "subnet-eun1-a-dev-app-02"
+    SubnetPrivateApp2:
+      CIDR: "10.21.7.0/24"
+      Tier: "Private"
+      Function: "app"
+      AZ: "b"
+      # SubnetName: "subnet-eun1-b-dev-app-02"
+    SubnetPrivateApp3:
+      CIDR: "10.21.8.0/24"
+      Tier: "Private"
+      Function: "app"
+      AZ: "c"
+      # SubnetName: "subnet-eun1-c-dev-app-02"
+    SubnetPrivateDB1:
+      CIDR: "10.21.9.0/24"
+      Tier: "Private"
+      Function: "db"
+      AZ: "a"
+      # SubnetName: "subnet-eun1-a-dev-db-02"
+    SubnetPrivateDB2:
+      CIDR: "10.21.10.0/24"
+      Tier: "Private"
+      Function: "db"
+      AZ: "b"
+      # SubnetName: "subnet-eun1-b-dev-db-02"
+    SubnetPrivateDB3:
+      CIDR: "10.21.11.0/24"
+      Tier: "Private"
+      Function: "db"
+      AZ: "c"
+      # SubnetName: "subnet-eun1-c-dev-db-02"
+
+Metadata:
+  Environment: !Ref 'Environment'
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock:
+        Fn::FindInMap:
+          - "Subnets"
+          - "VPC"
+          - "CIDR"
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Ref 'VPCName'
+        - Key: Environment
+          Value: !Ref 'Environment'
+
+  IPv6CidrBlock:
+    Type: AWS::EC2::VPCCidrBlock
+    Properties:
+      VpcId: !Ref VPC
+      AmazonProvidedIpv6CidrBlock: true
+
+  SubnetPublicBastion1:
+    Type: AWS::EC2::Subnet
+    DependsOn: IPv6CidrBlock
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      CidrBlock:
+        Fn::FindInMap:
+          - "Subnets"
+          - "SubnetPublicBastion1"
+          - "CIDR"
+      MapPublicIpOnLaunch: true
+      # AssignIpv6AddressOnCreation: true
+      Ipv6CidrBlock:
+        Fn::Sub:
+          - "${VpcPart}${SubnetPart}"
+          - SubnetPart: '00::/64'
+            VpcPart: !Select [ 0, !Split [ '00::/56', !Select [ 0, !GetAtt VPC.Ipv6CidrBlocks ]]]
+      Tags:
+        ##
+        # - Key: Name
+        #  Value: !FindInMap
+        #     - "Subnets"
+        #     - "SubnetPublicBastion1"
+        #     - "SubnetName"
+        ##
+        - Key: Name
+          Value:
+            !Sub
+            - "subnet-${RegionShortForm}-${AZ}-${Environment}-${Function}-${VPCNumber}"
+            - RegionShortForm: !Ref 'RegionShortForm'
+              AZ: !FindInMap [ "Subnets", "SubnetPublicBastion1", "AZ" ]
+              Environment: !Ref 'Environment'
+              Function: !FindInMap [ "Subnets", "SubnetPublicBastion1", "Function" ]
+              VPCNumber: !Ref 'VPCNumber'
+
+  SubnetPublicBastion2:
+    Type: AWS::EC2::Subnet
+    DependsOn: IPv6CidrBlock
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 1, !GetAZs '' ]
+      CidrBlock:
+        Fn::FindInMap:
+          - "Subnets"
+          - "SubnetPublicBastion2"
+          - "CIDR"
+      MapPublicIpOnLaunch: true
+      # AssignIpv6AddressOnCreation: true
+      Ipv6CidrBlock:
+        Fn::Sub:
+          - "${VpcPart}${SubnetPart}"
+          - SubnetPart: '01::/64'
+            VpcPart: !Select [ 0, !Split [ '00::/56', !Select [ 0, !GetAtt VPC.Ipv6CidrBlocks ]]]
+      Tags:
+        # - Key: Name
+        #   Value: !FindInMap
+        #    - "Subnets"
+        #    - "SubnetPublicBastion2"
+        #    - "SubnetName"
+        - Key: Name
+          Value:
+            !Sub
+            - "subnet-${RegionShortForm}-${AZ}-${Environment}-${Function}-${VPCNumber}"
+            - RegionShortForm: !Ref 'RegionShortForm'
+              AZ: !FindInMap [ "Subnets", "SubnetPublicBastion2", "AZ" ]
+              Environment: !Ref 'Environment'
+              Function: !FindInMap [ "Subnets", "SubnetPublicBastion2", "Function" ]
+              VPCNumber: !Ref 'VPCNumber'
+
+  SubnetPublicBastion3:
+    Type: AWS::EC2::Subnet
+    DependsOn: IPv6CidrBlock
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 2, !GetAZs '' ]
+      CidrBlock:
+        Fn::FindInMap:
+          - "Subnets"
+          - "SubnetPublicBastion3"
+          - "CIDR"
+      MapPublicIpOnLaunch: true
+      # AssignIpv6AddressOnCreation: true
+      Ipv6CidrBlock:
+        Fn::Sub:
+          - "${VpcPart}${SubnetPart}"
+          - SubnetPart: '02::/64'
+            VpcPart: !Select [ 0, !Split [ '00::/56', !Select [ 0, !GetAtt VPC.Ipv6CidrBlocks ]]]
+      Tags:
+        # - Key: Name
+        #   Value: !FindInMap
+        #     - "Subnets"
+        #     - "SubnetPublicBastion3"
+        #     - "SubnetName"
+        - Key: Name
+          Value:
+            !Sub
+            - "subnet-${RegionShortForm}-${AZ}-${Environment}-${Function}-${VPCNumber}"
+            - RegionShortForm: !Ref 'RegionShortForm'
+              AZ: !FindInMap [ "Subnets", "SubnetPublicBastion3", "AZ" ]
+              Environment: !Ref 'Environment'
+              Function: !FindInMap [ "Subnets", "SubnetPublicBastion3", "Function" ]
+              VPCNumber: !Ref 'VPCNumber'
+
+  SubnetPublicWeb1:
+    Type: AWS::EC2::Subnet
+    DependsOn: IPv6CidrBlock
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      CidrBlock:
+        Fn::FindInMap:
+          - "Subnets"
+          - "SubnetPublicWeb1"
+          - "CIDR"
+      MapPublicIpOnLaunch: true
+      # AssignIpv6AddressOnCreation: true
+      Ipv6CidrBlock:
+        Fn::Sub:
+          - "${VpcPart}${SubnetPart}"
+          - SubnetPart: '03::/64'
+            VpcPart: !Select [ 0, !Split [ '00::/56', !Select [ 0, !GetAtt VPC.Ipv6CidrBlocks ]]]
+      Tags:
+        # - Key: Name
+        #   Value: !FindInMap
+        #     - "Subnets"
+        #     - "SubnetPublicWeb1"
+        #     - "SubnetName"
+        - Key: Name
+          Value:
+            !Sub
+            - "subnet-${RegionShortForm}-${AZ}-${Environment}-${Function}-${VPCNumber}"
+            - RegionShortForm: !Ref 'RegionShortForm'
+              AZ: !FindInMap [ "Subnets", "SubnetPublicWeb1", "AZ" ]
+              Environment: !Ref 'Environment'
+              Function: !FindInMap [ "Subnets", "SubnetPublicWeb1", "Function" ]
+              VPCNumber: !Ref 'VPCNumber'
+
+  SubnetPublicWeb2:
+    Type: AWS::EC2::Subnet
+    DependsOn: IPv6CidrBlock
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 1, !GetAZs '' ]
+      CidrBlock:
+        Fn::FindInMap:
+          - "Subnets"
+          - "SubnetPublicWeb2"
+          - "CIDR"
+      MapPublicIpOnLaunch: true
+      # AssignIpv6AddressOnCreation: true
+      Ipv6CidrBlock:
+        Fn::Sub:
+          - "${VpcPart}${SubnetPart}"
+          - SubnetPart: '04::/64'
+            VpcPart: !Select [ 0, !Split [ '00::/56', !Select [ 0, !GetAtt VPC.Ipv6CidrBlocks ]]]
+      Tags:
+        # - Key: Name
+        #   Value: !FindInMap
+        #     - "Subnets"
+        #     - "SubnetPublicWeb2"
+        #     - "SubnetName"
+        - Key: Name
+          Value:
+            !Sub
+            - "subnet-${RegionShortForm}-${AZ}-${Environment}-${Function}-${VPCNumber}"
+            - RegionShortForm: !Ref 'RegionShortForm'
+              AZ: !FindInMap [ "Subnets", "SubnetPublicWeb2", "AZ" ]
+              Environment: !Ref 'Environment'
+              Function: !FindInMap [ "Subnets", "SubnetPublicWeb2", "Function" ]
+              VPCNumber: !Ref 'VPCNumber'
+
+  SubnetPublicWeb3:
+    Type: AWS::EC2::Subnet
+    DependsOn: IPv6CidrBlock
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 2, !GetAZs '' ]
+      CidrBlock:
+        Fn::FindInMap:
+          - "Subnets"
+          - "SubnetPublicWeb3"
+          - "CIDR"
+      MapPublicIpOnLaunch: true
+      # AssignIpv6AddressOnCreation: true
+      Ipv6CidrBlock:
+        Fn::Sub:
+          - "${VpcPart}${SubnetPart}"
+          - SubnetPart: '05::/64'
+            VpcPart: !Select [ 0, !Split [ '00::/56', !Select [ 0, !GetAtt VPC.Ipv6CidrBlocks ]]]
+      Tags:
+        # - Key: Name
+        #   Value: !FindInMap
+        #     - "Subnets"
+        #     - "SubnetPublicWeb3"
+        #     - "SubnetName"
+        - Key: Name
+          Value:
+            !Sub
+            - "subnet-${RegionShortForm}-${AZ}-${Environment}-${Function}-${VPCNumber}"
+            - RegionShortForm: !Ref 'RegionShortForm'
+              AZ: !FindInMap [ "Subnets", "SubnetPublicWeb3", "AZ" ]
+              Environment: !Ref 'Environment'
+              Function: !FindInMap [ "Subnets", "SubnetPublicWeb3", "Function" ]
+              VPCNumber: !Ref 'VPCNumber'
+
+  SubnetPrivateApp1:
+    Type: AWS::EC2::Subnet
+    DependsOn: IPv6CidrBlock
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      CidrBlock:
+        Fn::FindInMap:
+          - "Subnets"
+          - "SubnetPrivateApp1"
+          - "CIDR"
+      # AssignIpv6AddressOnCreation: true
+      Ipv6CidrBlock:
+        Fn::Sub:
+          - "${VpcPart}${SubnetPart}"
+          - SubnetPart: '06::/64'
+            VpcPart: !Select [ 0, !Split [ '00::/56', !Select [ 0, !GetAtt VPC.Ipv6CidrBlocks ]]]
+      Tags:
+        # - Key: Name
+        #   Value: !FindInMap
+        #    - "Subnets"
+        #    - "SubnetPrivateApp1"
+        #    - "SubnetName"
+        - Key: Name
+          Value:
+            !Sub
+            - "subnet-${RegionShortForm}-${AZ}-${Environment}-${Function}-${VPCNumber}"
+            - RegionShortForm: !Ref 'RegionShortForm'
+              AZ: !FindInMap [ "Subnets", "SubnetPrivateApp1", "AZ" ]
+              Environment: !Ref 'Environment'
+              Function: !FindInMap [ "Subnets", "SubnetPrivateApp1", "Function" ]
+              VPCNumber: !Ref 'VPCNumber'
+
+  SubnetPrivateApp2:
+    Type: AWS::EC2::Subnet
+    DependsOn: IPv6CidrBlock
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 1, !GetAZs '' ]
+      CidrBlock:
+        Fn::FindInMap:
+          - "Subnets"
+          - "SubnetPrivateApp2"
+          - "CIDR"
+      # AssignIpv6AddressOnCreation: true
+      Ipv6CidrBlock:
+        Fn::Sub:
+          - "${VpcPart}${SubnetPart}"
+          - SubnetPart: '07::/64'
+            VpcPart: !Select [ 0, !Split [ '00::/56', !Select [ 0, !GetAtt VPC.Ipv6CidrBlocks ]]]
+      Tags:
+        # - Key: Name
+        #   Value: !FindInMap
+        #     - "Subnets"
+        #     - "SubnetPrivateApp2"
+        #     - "SubnetName"
+        - Key: Name
+          Value:
+            !Sub
+            - "subnet-${RegionShortForm}-${AZ}-${Environment}-${Function}-${VPCNumber}"
+            - RegionShortForm: !Ref 'RegionShortForm'
+              AZ: !FindInMap [ "Subnets", "SubnetPrivateApp2", "AZ" ]
+              Environment: !Ref 'Environment'
+              Function: !FindInMap [ "Subnets", "SubnetPrivateApp2", "Function" ]
+              VPCNumber: !Ref 'VPCNumber'
+
+  SubnetPrivateApp3:
+    Type: AWS::EC2::Subnet
+    DependsOn: IPv6CidrBlock
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 2, !GetAZs '' ]
+      CidrBlock:
+        Fn::FindInMap:
+          - "Subnets"
+          - "SubnetPrivateApp3"
+          - "CIDR"
+      # AssignIpv6AddressOnCreation: true
+      Ipv6CidrBlock:
+        Fn::Sub:
+          - "${VpcPart}${SubnetPart}"
+          - SubnetPart: '08::/64'
+            VpcPart: !Select [ 0, !Split [ '00::/56', !Select [ 0, !GetAtt VPC.Ipv6CidrBlocks ]]]
+      Tags:
+        # - Key: Name
+        #   Value: !FindInMap
+        #     - "Subnets"
+        #     - "SubnetPrivateApp3"
+        #     - "SubnetName"
+        - Key: Name
+          Value:
+            !Sub
+            - "subnet-${RegionShortForm}-${AZ}-${Environment}-${Function}-${VPCNumber}"
+            - RegionShortForm: !Ref 'RegionShortForm'
+              AZ: !FindInMap [ "Subnets", "SubnetPrivateApp3", "AZ" ]
+              Environment: !Ref 'Environment'
+              Function: !FindInMap [ "Subnets", "SubnetPrivateApp3", "Function" ]
+              VPCNumber: !Ref 'VPCNumber'
+
+  SubnetPrivateDB1:
+    Type: AWS::EC2::Subnet
+    DependsOn: IPv6CidrBlock
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      CidrBlock:
+        Fn::FindInMap:
+          - "Subnets"
+          - "SubnetPrivateDB1"
+          - "CIDR"
+      # AssignIpv6AddressOnCreation: true
+      Ipv6CidrBlock:
+        Fn::Sub:
+          - "${VpcPart}${SubnetPart}"
+          - SubnetPart: '09::/64'
+            VpcPart: !Select [ 0, !Split [ '00::/56', !Select [ 0, !GetAtt VPC.Ipv6CidrBlocks ]]]
+      Tags:
+        # - Key: Name
+        #  Value: !FindInMap
+        #    - "Subnets"
+        #    - "SubnetPrivateDB1"
+        #    - "SubnetName"
+        - Key: Name
+          Value:
+            !Sub
+            - "subnet-${RegionShortForm}-${AZ}-${Environment}-${Function}-${VPCNumber}"
+            - RegionShortForm: !Ref 'RegionShortForm'
+              AZ: !FindInMap [ "Subnets", "SubnetPrivateDB1", "AZ" ]
+              Environment: !Ref 'Environment'
+              Function: !FindInMap [ "Subnets", "SubnetPrivateDB1", "Function" ]
+              VPCNumber: !Ref 'VPCNumber'
+
+  SubnetPrivateDB2:
+    Type: AWS::EC2::Subnet
+    DependsOn: IPv6CidrBlock
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 1, !GetAZs '' ]
+      CidrBlock:
+        Fn::FindInMap:
+          - "Subnets"
+          - "SubnetPrivateDB2"
+          - "CIDR"
+      # AssignIpv6AddressOnCreation: true
+      Ipv6CidrBlock:
+        Fn::Sub:
+          - "${VpcPart}${SubnetPart}"
+          - SubnetPart: '0a::/64'
+            VpcPart: !Select [ 0, !Split [ '00::/56', !Select [ 0, !GetAtt VPC.Ipv6CidrBlocks ]]]
+      Tags:
+        # - Key: Name
+        #  Value: !FindInMap
+        #    - "Subnets"
+        #    - "SubnetPrivateDB2"
+        #    - "SubnetName"
+        - Key: Name
+          Value:
+            !Sub
+            - "subnet-${RegionShortForm}-${AZ}-${Environment}-${Function}-${VPCNumber}"
+            - RegionShortForm: !Ref 'RegionShortForm'
+              AZ: !FindInMap [ "Subnets", "SubnetPrivateDB2", "AZ" ]
+              Environment: !Ref 'Environment'
+              Function: !FindInMap [ "Subnets", "SubnetPrivateDB2", "Function" ]
+              VPCNumber: !Ref 'VPCNumber'
+
+  SubnetPrivateDB3:
+    Type: AWS::EC2::Subnet
+    DependsOn: IPv6CidrBlock
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 2, !GetAZs '' ]
+      CidrBlock:
+        Fn::FindInMap:
+          - "Subnets"
+          - "SubnetPrivateDB3"
+          - "CIDR"
+      # AssignIpv6AddressOnCreation: true
+      Ipv6CidrBlock:
+        Fn::Sub:
+          - "${VpcPart}${SubnetPart}"
+          - SubnetPart: '0b::/64'
+            VpcPart: !Select [ 0, !Split [ '00::/56', !Select [ 0, !GetAtt VPC.Ipv6CidrBlocks ]]]
+      Tags:
+        # - Key: Name
+        #   Value: !FindInMap
+        #     - "Subnets"
+        #     - "SubnetPrivateDB3"
+        #     - "SubnetName"
+        - Key: Name
+          Value:
+            !Sub
+            - "subnet-${RegionShortForm}-${AZ}-${Environment}-${Function}-${VPCNumber}"
+            - RegionShortForm: !Ref 'RegionShortForm'
+              AZ: !FindInMap [ "Subnets", "SubnetPrivateDB3", "AZ" ]
+              Environment: !Ref 'Environment'
+              Function: !FindInMap [ "Subnets", "SubnetPrivateDB3", "Function" ]
+              VPCNumber: !Ref 'VPCNumber'
+
+  InternetGateway:
+    Type: 'AWS::EC2::InternetGateway'
+    Properties:
+      Tags:
+        - Key: Name
+          # Value: igw-eun1-dev-vpc02
+          Value:
+            !Sub
+              - "igw-${RegionShortForm}-${Environment}-vpc${VPCNumber}"
+              - RegionShortForm: !Ref 'RegionShortForm'
+                Environment: !Ref 'Environment'
+                VPCNumber: !Ref 'VPCNumber'
+        - Key: Environment
+          Value: !Ref "Environment"
+
+  InternetGatewayAttachment:
+    Type: 'AWS::EC2::VPCGatewayAttachment'
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  RouteTablePublic:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          # Value: routetbl-eun1-dev-02-public
+          Value:
+            !Sub
+              - "routetbl-${RegionShortForm}-${Environment}-${VPCNumber}-public"
+              - RegionShortForm: !Ref 'RegionShortForm'
+                Environment: !Ref 'Environment'
+                VPCNumber: !Ref 'VPCNumber'
+
+  RouteTablePublicDefaultIPv4:
+    Type: 'AWS::EC2::Route'
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      RouteTableId:
+        Ref: "RouteTablePublic"
+      DestinationCidrBlock: "0.0.0.0/0"
+      GatewayId:
+        Ref: InternetGateway
+
+  RouteTablePublicDefaultIPv6:
+    Type: 'AWS::EC2::Route'
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      RouteTableId:
+        Ref: "RouteTablePublic"
+      DestinationIpv6CidrBlock: "::/0"
+      GatewayId:
+        Ref: InternetGateway
+
+  RouteTableAssociationBastion1:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref SubnetPublicBastion1
+      RouteTableId:
+        Ref: RouteTablePublic
+  RouteTableAssociationBastion2:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref SubnetPublicBastion2
+      RouteTableId:
+        Ref: RouteTablePublic
+  RouteTableAssociationBastion3:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref SubnetPublicBastion3
+      RouteTableId:
+        Ref: RouteTablePublic
+  RouteTableAssociationWeb1:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref SubnetPublicWeb1
+      RouteTableId:
+        Ref: RouteTablePublic
+  RouteTableAssociationWeb2:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref SubnetPublicWeb2
+      RouteTableId:
+        Ref: RouteTablePublic
+  RouteTableAssociationWeb3:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref SubnetPublicWeb3
+      RouteTableId:
+        Ref: RouteTablePublic
+
+  EIPForNatGW1:
+    Type: 'AWS::EC2::EIP'
+    Properties:
+      Domain: vpc
+  EIPForNatGW2:
+    Type: 'AWS::EC2::EIP'
+    Properties:
+      Domain: vpc
+  EIPForNatGW3:
+    Type: 'AWS::EC2::EIP'
+    Properties:
+      Domain: vpc
+
+  # This is the public subnet which the NAT GW would be created
+  NatGateway1:
+    Type: 'AWS::EC2::NatGateway'
+    Properties:
+      AllocationId: !GetAtt EIPForNatGW1.AllocationId
+      SubnetId: !Ref SubnetPublicWeb1
+  NatGateway2:
+    Type: 'AWS::EC2::NatGateway'
+    Properties:
+      AllocationId: !GetAtt EIPForNatGW2.AllocationId
+      SubnetId: !Ref SubnetPublicWeb2
+  NatGateway3:
+    Type: 'AWS::EC2::NatGateway'
+    Properties:
+      AllocationId: !GetAtt EIPForNatGW3.AllocationId
+      SubnetId: !Ref SubnetPublicWeb3
+
+  RouteTablePrivate1:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        # Value: routetbl-eun1-a-dev-02-private
+        Value:
+          !Sub
+            - "routetbl-${RegionShortForm}-a-${Environment}-${VPCNumber}-private"
+            - RegionShortForm: !Ref 'RegionShortForm'
+              Environment: !Ref 'Environment'
+              VPCNumber: !Ref 'VPCNumber'
+
+  RouteTablePrivate2:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        # Value: routetbl-eun1-b-dev-02-private
+        Value:
+          !Sub
+            - "routetbl-${RegionShortForm}-b-${Environment}-${VPCNumber}-private"
+            - RegionShortForm: !Ref 'RegionShortForm'
+              Environment: !Ref 'Environment'
+              VPCNumber: !Ref 'VPCNumber'
+
+  RouteTablePrivate3:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        # Value: routetbl-eun1-c-dev-02-private
+        Value:
+          !Sub
+            - "routetbl-${RegionShortForm}-c-${Environment}-${VPCNumber}-private"
+            - RegionShortForm: !Ref 'RegionShortForm'
+              Environment: !Ref 'Environment'
+              VPCNumber: !Ref 'VPCNumber'
+
+  RouteNatGW1:
+    Type: 'AWS::EC2::Route'
+    Properties:
+      RouteTableId: !Ref RouteTablePrivate1
+      DestinationCidrBlock: '0.0.0.0/0'
+      NatGatewayId: !Ref NatGateway1
+  RouteNatGW2:
+    Type: 'AWS::EC2::Route'
+    Properties:
+      RouteTableId: !Ref RouteTablePrivate2
+      DestinationCidrBlock: '0.0.0.0/0'
+      NatGatewayId: !Ref NatGateway2
+  RouteNatGW3:
+    Type: 'AWS::EC2::Route'
+    Properties:
+      RouteTableId: !Ref RouteTablePrivate3
+      DestinationCidrBlock: '0.0.0.0/0'
+      NatGatewayId: !Ref NatGateway3
+
+  RouteTableAssociationApp1:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref SubnetPrivateApp1
+      RouteTableId: !Ref RouteTablePrivate1
+  RouteTableAssociationApp2:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref SubnetPrivateApp2
+      RouteTableId: !Ref RouteTablePrivate2
+  RouteTableAssociationApp3:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref SubnetPrivateApp3
+      RouteTableId: !Ref RouteTablePrivate3
+
+  RouteTableAssociationDB1:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref SubnetPrivateDB1
+      RouteTableId: !Ref RouteTablePrivate1
+  RouteTableAssociationDB2:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref SubnetPrivateDB2
+      RouteTableId: !Ref RouteTablePrivate2
+  RouteTableAssociationDB3:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref SubnetPrivateDB3
+      RouteTableId: !Ref RouteTablePrivate3
