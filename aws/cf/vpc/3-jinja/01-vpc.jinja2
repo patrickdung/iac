@@ -460,8 +460,8 @@ Resources:
       Ipv6CidrBlock:
         Fn::Sub:
           - "${VpcPart}${SubnetPart}"
-            {#- starting with 08 because the first one is 00, total 9 subnets was created before #}
-          - SubnetPart: '{{ '%02x' % (08+i|int(base=16)) }}::/64'
+            {#- starting with 8 (08) because the first one is 00, total 9 subnets was created before #}
+          - SubnetPart: '{{ '%02x' % (8+i|int(base=16)) }}::/64'
             VpcPart: !Select [ 0, !Split [ '00::/56', !Select [ 0, !GetAtt VPC.Ipv6CidrBlocks ]]]
       Tags:
         - Key: Name
