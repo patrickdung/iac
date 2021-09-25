@@ -9,7 +9,7 @@ Parameters:
       Provide stack name of the VPC to get the SubnetGroup of the database
     Type: String
   AllowDestinationPortDbPgSql:
-    Description: Ingress ports to allow PgSql port (5432) -1 for not enabling this ingress
+    Description: Ingress ports to allow PgSql port (5432), -1 for not enabling this ingress
     Type: Number
     MinValue: -1
     MaxValue: 65535
