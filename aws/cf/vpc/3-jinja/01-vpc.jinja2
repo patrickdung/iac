@@ -482,10 +482,10 @@ Resources:
     Properties:
       Tags:
         - Key: Name
-          {#- # Value: igw-eun1-dev-vpc02 #}
+          {#- # Value: igw-eun1-dev-02 #}
           Value:
             !Sub
-              - "igw-${RegionShortForm}-${Environment}-vpc${VPCNumber}"
+              - "igw-${RegionShortForm}-${Environment}-${VPCNumber}"
               - RegionShortForm: !Ref 'RegionShortForm'
                 Environment: !Ref 'Environment'
                 VPCNumber: !Ref 'VPCNumber'
