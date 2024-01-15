@@ -3,6 +3,7 @@
 variable "instance_type" {}
 variable "instance_count" {}
 variable "security_group_internet_to_web" {}
+variable "security_group_internet_to_elb_public_web" {}
 variable "subnet_public_web" {}
 variable "vol_size" {}
 variable "public_key_path" {}

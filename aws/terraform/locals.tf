@@ -41,6 +41,37 @@ locals {
 }
 
 locals {
+  security_group_internet_to_elb_public_web = {
+    elb_public_web = {
+      ## name        = "security_group_internet_to_web"
+      name        = "secgroup-${var.aws_region_shortform}-${var.environment}-${var.vpc_number}-elb-public-web"
+      description = "Allow ingress from Internet to public subnet ELB web tier"
+      ingress = {
+        http = {
+          from_port   = 80
+          to_port     = 80
+          protocol    = "tcp"
+          cidr_blocks = ["0.0.0.0/0"]
+        }
+        https = {
+          from_port   = 443
+          to_port     = 443
+          protocol    = "tcp"
+          cidr_blocks = ["0.0.0.0/0"]
+        }
+        # icmp ping only 
+        icmp = {
+          from_port   = 8
+          to_port     = -1
+          protocol    = "icmp"
+          cidr_blocks = ["0.0.0.0/0"]
+        }
+      }
+    }
+  }
+}
+
+locals {
   security_group_db = {
     database = {
       name        = "secgroup-${var.aws_region_shortform}-${var.environment}-${var.vpc_number}-db"

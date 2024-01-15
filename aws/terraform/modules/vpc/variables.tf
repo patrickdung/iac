@@ -15,6 +15,7 @@ variable "create_natgw_for_private_subnets" {
 }
 
 variable "security_group_internet_to_web" {}
+variable "security_group_internet_to_elb_public_web" {}
 variable "allow_incoming_ssh_ip" {}
 
 variable "security_group_db" {}

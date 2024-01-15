@@ -33,6 +33,7 @@ module "vpc" {
   create_natgw_for_private_subnets = var.create_natgw_for_private_subnets
 
   security_group_internet_to_web = local.security_group_internet_to_web
+  security_group_internet_to_elb_public_web = local.security_group_internet_to_elb_public_web
   allow_incoming_ssh_ip           = var.allow_incoming_ssh_ip
 
   security_group_db = local.security_group_db
@@ -67,7 +68,8 @@ module "rds_postgres" {
 
 module "compute_web" {
   source              = "./modules/compute_web"
-  security_group_internet_to_web   = module.vpc.security_group_internet_to_web
+  security_group_internet_to_web = module.vpc.security_group_internet_to_web
+  security_group_internet_to_elb_public_web  = module.vpc.security_group_internet_to_elb_public_web
   subnet_public_web   = module.vpc.subnet_public_web
   instance_count      = 1
   instance_type       = "t3.micro"

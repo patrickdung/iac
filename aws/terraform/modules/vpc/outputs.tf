@@ -16,6 +16,10 @@ output "security_group_internet_to_web" {
   value = [aws_security_group.security_group_internet_to_web["public_web"].id]
 }
 
+output "security_group_internet_to_elb_public_web" {
+  value = [aws_security_group.security_group_internet_to_elb_public_web["elb_public_web"].id]
+}
+
 output "security_group_web_to_db" {
   value = [aws_security_group.security_group_web_to_db["web_to_db"].id]
 }
