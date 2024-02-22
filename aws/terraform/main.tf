@@ -72,7 +72,7 @@ module "compute_web" {
   security_group_internet_to_elb_public_web  = module.vpc.security_group_internet_to_elb_public_web
   subnet_public_web   = module.vpc.subnet_public_web
   instance_count      = 1
-  instance_type       = "t3.micro"
+  instance_type       = "t3a.micro"
   ## │ Error: Error launching source instance: InvalidBlockDeviceMapping: Volume of size 8GB is smaller than  snapshot 'snap-0aa089b1b6c22f9ad', expect size >= 30GB
   vol_size            = "30"
   public_key_path     = "${path.root}/../secrets/main.publickey"

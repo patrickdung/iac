@@ -78,7 +78,7 @@ resource "aws_launch_template" "launch_template_public_compute_web" {
     device_name = "/dev/xvda"
     ebs {
       volume_size = var.vol_size
-      volume_type = "gp2"
+      volume_type = "gp3"
       #delete_on_termination = "false"
       encrypted = "false"
     }
