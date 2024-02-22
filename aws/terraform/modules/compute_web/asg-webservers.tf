@@ -156,7 +156,7 @@ resource "aws_autoscaling_group" "asg_public_web_group01" {
 }
 
 resource "aws_autoscaling_policy" "asg_policy_public_web_group01" {
-  name                   = "asg_policy_public_web_gorup01"
+  name                   = "asg_policy_public_web_group01"
   adjustment_type        = "ChangeInCapacity"
   # scaling_adjustment, cooldown only for simple tracking
   #scaling_adjustment     = 1
