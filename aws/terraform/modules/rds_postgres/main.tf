@@ -4,8 +4,10 @@
 
 resource "aws_db_instance" "rds_postgres" {
   #count = var.create_rds_postgres ? 1 : 0
-  allocated_storage      = 8
+  allocated_storage      = 30
   engine                 = "postgres"
+  storage_type           = "gp3"
+  auto_minor_version_upgrade = false
   engine_version         = var.db_engine_version
   instance_class         = var.db_instance_class
   #name                   = var.db_name
